@@ -1,10 +1,10 @@
-// use ::core::time;
+use ::core::time;
 use std::env;
 
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-//use std::thread;
+use std::thread;
 
 use raylib::{misc::AsF32, prelude::*};
 use rand::distributions::{Distribution, Uniform};
@@ -276,7 +276,7 @@ fn main() {
     const NUM_ITERATIONS: usize = 400;
     const COOLING_FACTOR: f32 = 0.95;
     const FORCE_CONSTANT: f32 = 1.3;
-    const INITIAL_TEMP: f32 = 100.0;
+    const INITIAL_TEMP: f32 = 250.0;
     const MIN_TEMP: f32 = 0.05 ;
     let k_factor = (FORCE_CONSTANT * (WIDTH*HEIGHT)/(graph.vertices.len() as f32)).sqrt();
 
@@ -320,7 +320,7 @@ fn main() {
             
             i += 1;
             
-           // thread::sleep(time::Duration::from_millis(30));
+            thread::sleep(time::Duration::from_millis(25));
 
         }
 
@@ -337,7 +337,7 @@ fn main() {
                 println!("Node {0: <7} X position: {1: >10.3} Y position: {2: >10.3}", node.id, node.position.0, node.position.1)
             }
 
-        } else if i > NUM_ITERATIONS && first_print {
+        } else if i >= NUM_ITERATIONS && first_print {
             println!("Iterations ran short");
 
             println!("Number of iterations: {}", NUM_ITERATIONS) ;
