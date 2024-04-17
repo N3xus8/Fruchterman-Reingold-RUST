@@ -146,6 +146,7 @@ fn update_positions(graph: &mut Graph, temp: f32, margin: f32) {
        graph.vertices[u].position.0 += graph.vertices[u].forces.0;
        graph.vertices[u].position.1 += graph.vertices[u].forces.1;
 
+       // To avoid positions outside the frame
         let cte = margin-0.1;
         if graph.vertices[u].position.0 < -cte*WIDTH{
             graph.vertices[u].position.0 = -cte*WIDTH;
@@ -194,11 +195,11 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
-
+// parse a file with specific graph description syntax and construct a graph
 fn parse_file(filename: &str) -> Option<Graph> {
     let mut vertices:Vec<Vertex> = Vec::new();
     let mut edges:Vec<(&str,&str)> = Vec::new();
-    let mut edges_idx:Vec<Edge> = Vec::new();
+    let mut edges_idx:Vec<Edge> = Vec::new(); // this vectors
     if let Ok(lines) = read_lines(filename) {
         
         let  lines_vec: Vec<String> = lines.into_iter().map(|line| line.expect("Something went wrong while reading the file.")).collect();
@@ -221,7 +222,7 @@ fn parse_file(filename: &str) -> Option<Graph> {
         for edge in edges {
             let  source:usize;
             let  target:usize;
-            // get the index of the vertex matching edge value as a string
+            // get the index of the vertex that matchs edge value as a string
             match vertices.iter().position(|so | so.id == edge.0 ) {
                 Some(pos) => {source = pos ;} 
                 None => {panic!("Invalid edge: {:?}", edge)}
