@@ -1,7 +1,10 @@
+//use ::core::time;
+use std::env;
+
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use std::{thread, time};
+//use std::thread;
 
 use raylib::{misc::AsF32, prelude::*};
 use rand::distributions::{Distribution, Uniform};
@@ -32,13 +35,6 @@ struct Graph {
     vertices: Vec<Vertex>,
     edges: Vec<Edge>,
 }
-
-// impl  Graph {
-//     fn new() -> Graph {       
-//         Graph { vertices: vec![], edges: vec![] }
-//     }
-
-// }
 
 
 // Initialize Vertex positions (randomly)
@@ -109,17 +105,7 @@ fn compute_repulsion_forces(graph: &mut Graph, k_factor: f32){
                 graph.vertices[i].forces.1 -= fy/2.0 ;
                 graph.vertices[j].forces.0 += fx/2.0 ;
                 graph.vertices[j].forces.1 += fy/2.0 ;
-
-                // println!("id: {},fx: {}, fy: {}",graph.vertices[i].id, graph.vertices[i].forces.0,graph.vertices[i].forces.1);
-                // println!("id: {},fx: {}, fy: {}",graph.vertices[j].id, graph.vertices[j].forces.0,graph.vertices[j].forces.1);
-
-                // println!("---------------------------------------------------------------");
-
-                //u_node.forces.0 += fx/2.0 ;
-                //u_node.forces.1 += fy/2.0 ;
             
-                //v_node.forces.0 += fx/2.0 ;
-                //v_node.forces.1 += fy/2.0 ;                 
 
             }
         }
@@ -185,14 +171,19 @@ fn draw(drawing:  &mut RaylibDrawHandle,location: Rectangle, graph: &Graph) {
         let x: Vector2 = (graph.vertices[edge.source].position.0+WIDTH , graph.vertices[edge.source].position.1+HEIGHT).into();
         let y: Vector2 = (graph.vertices[edge.target].position.0+WIDTH , graph.vertices[edge.target].position.1+HEIGHT).into();
 
+        //let line_color: Color = [Color::BLUE,Color::PURPLE, Color::WHITE, Color::BLACK][i%4];
         drawing.draw_line_ex(x, y, 4.0,Color::BLUE);
+        let text = format!("{}", graph.vertices[edge.source].id);
         drawing.draw_circle_v(x, 15.0, Color::RED);
+        drawing.draw_text(&text, x.x as i32 , x.y as i32 , 27, Color::DARKBROWN);
+
+        let text = format!("{}", graph.vertices[edge.target].id);
+
         drawing.draw_circle_v(y, 15.0, Color::GREEN);
+        drawing.draw_text(&text, y.x as i32  , y.y as i32  , 27, Color::DARKBROWN);
 
 
-        let ten_millis = time::Duration::from_millis(10);
         
-        //thread::sleep(ten_millis);
     }
 
 }
@@ -225,13 +216,12 @@ fn parse_file(filename: &str) -> Option<Graph> {
             edges.push(edg);
 
         }
-        //println!("vertices: {:?}", vertices);
 
-        //println!("edges: {:?}", edges);
 
         for edge in edges {
             let  source:usize;
             let  target:usize;
+            // get the index of the vertex matching edge value as a string
             match vertices.iter().position(|so | so.id == edge.0 ) {
                 Some(pos) => {source = pos ;} 
                 None => {panic!("Invalid edge: {:?}", edge)}
@@ -242,8 +232,6 @@ fn parse_file(filename: &str) -> Option<Graph> {
             }
             edges_idx.push(Edge {source: source,target: target});
         }
-
-       //println!("edges with indices: {:?}", edges_idx);
     
         return Some(Graph{vertices: vertices, edges: edges_idx});
     }
@@ -254,6 +242,13 @@ fn parse_file(filename: &str) -> Option<Graph> {
 
 fn main() {
 
+    let args: Vec<String> = env::args().collect();
+    let mut file_path = &String::from("./grafos/k8.txt");
+    match args.len() {
+        2 => {file_path = &args[1];}
+        _ => {eprintln!("error: invalid command");}
+
+    }
     let (mut raylb, thread) = raylib::init()
     .size(WINDOWWIDTH as i32, WINDOWHEIGHT as i32 )
     .title("Fruchterman-Reingold Graph")
@@ -269,7 +264,7 @@ fn main() {
     let mut graph: Graph; // Initialize the graph
     
 
-    match parse_file("./grafos/petersen.txt"){
+    match parse_file(file_path.as_str()){
         Some(graph_f) => { graph = graph_f ;}
         None => {panic!(" Error parsing the file");}
     }
@@ -295,12 +290,16 @@ fn main() {
     }
 
     let mut i:usize = 0;
+    let mut cool_down = false;
+    let mut cool_down_iter: usize = 0;
+    let mut first_print = true;
+
     while !raylb.window_should_close() {
         let mut drawing = raylb.begin_drawing(&thread);
          
         drawing.clear_background(Color::LIGHTGRAY);
 
-        while i < NUM_ITERATIONS {
+        if i < NUM_ITERATIONS {
             initialize_forces(&mut graph);
 
             compute_attraction_forces(&mut graph, k_factor);
@@ -310,38 +309,49 @@ fn main() {
             calculate_gravity_forces(&mut graph, k_factor);
 
             update_positions(&mut graph, temp, margin);
-
+            
             temp *= COOLING_FACTOR;
 
             if temp < MIN_TEMP {
-                println!("Graph cooled completely");
-
-                println!("Number of iterations: {}", i);
-                i = NUM_ITERATIONS;
-                break;
-
-            } else {
-                i += 1;
+                cool_down = true ;
+                cool_down_iter = i;
             }
+            
+            i += 1;
+            
+           // thread::sleep(time::Duration::from_millis(30));
 
         }
 
+        draw(&mut drawing, grid_rect, &graph);
 
-        if temp >= MIN_TEMP {
+
+        if cool_down && first_print  {
+            println!("Graph cooled completely");
+
+            println!("Number of iterations: {}", cool_down_iter);
+            first_print = false;
+            println!("Final positions:");
+            for node in &graph.vertices {
+                println!("Node {0: <7} X position: {1: >10.3} Y position: {2: >10.3}", node.id, node.position.0, node.position.1)
+            }
+
+        } else if i > NUM_ITERATIONS && first_print {
             println!("Iterations ran short");
 
             println!("Number of iterations: {}", NUM_ITERATIONS) ;
+            first_print = false;
+            println!("Final positions:");
+            for node in &graph.vertices {
+                println!("Node {0: <7} X position: {1: >10.3} Y position: {2: >10.3}", node.id, node.position.0, node.position.1)
+            }
         }
 
 
-        draw(&mut drawing, grid_rect, &graph);
 
         drawing.draw_fps(5, 5)
 
     }
 
-    println!("Final positions:");
-    for node in &graph.vertices {
-        println!("Node {0: <7} X position: {1: >10.3} Y position: {2: >10.3}", node.id, node.position.0, node.position.1)
-    }
+
 }
